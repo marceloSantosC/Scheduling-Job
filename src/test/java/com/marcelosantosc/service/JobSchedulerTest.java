@@ -4,7 +4,9 @@ import com.marcelosantosc.scheduling.job.model.Job;
 import com.marcelosantosc.scheduling.job.model.ValidationResult;
 import com.marcelosantosc.scheduling.job.service.JobScheduler;
 import org.junit.jupiter.api.Test;
+import org.junit.platform.commons.util.ReflectionUtils;
 
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -13,10 +15,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class JobSchedulerTest {
 
-    private final JobScheduler jobScheduler;
+    private final JobScheduler scheduler;
 
     public JobSchedulerTest() {
-        this.jobScheduler = new JobScheduler();
+        this.scheduler = new JobScheduler();
     }
 
     @Test
@@ -37,7 +39,7 @@ public class JobSchedulerTest {
 
         assertNotEquals(sortedList, jobsToSort);
 
-        Queue<Job> jobsSortedByAlgorithm = jobScheduler.sortJobsByDate(jobsToSort);
+        Queue<Job> jobsSortedByAlgorithm = scheduler.sortJobsByDate(jobsToSort);
 
         assertEquals(sortedList, jobsSortedByAlgorithm);
     }
@@ -53,83 +55,130 @@ public class JobSchedulerTest {
 
         List<Job> jobs = Arrays.asList(firstJob, secondJob, thirdJob);
 
-        ValidationResult validationResult = jobScheduler.validateJobs(executionWindowStart, executionWindowEnd, jobs);
+        ValidationResult validationResult = scheduler.validateJobs(executionWindowStart, executionWindowEnd, jobs);
 
         assertTrue(validationResult.isValid());
         assertTrue(validationResult.getMessages().isEmpty());
     }
 
     @Test
-    void list_with_jobs_after_execution_window_end_should_be_invalid() {
+    void should_return_false_when_all_jobs_are_inside_execution_window() {
+
+        Job firstJob = newJob(LocalDateTime.parse("2020-10-12T10:20:30"), Duration.ofHours(1));
+        Job secondJob = newJob(LocalDateTime.parse("2020-10-12T12:30:00"), Duration.ofHours(1));
+        Job thirdJob = newJob(LocalDateTime.parse("2020-10-12T00:20:30"), Duration.ofHours(1));
+
+        LocalDateTime start = LocalDateTime.parse("2020-10-12T00:00:00");
+        LocalDateTime end = LocalDateTime.parse("2020-10-12T23:59:00");
+
+        List<Job> jobs = Arrays.asList(firstJob, secondJob, thirdJob);
+        Method method = ReflectionUtils.findMethod(JobScheduler.class, "areThereJobsOutOfTheExecutionWindow",
+                List.class, LocalDateTime.class, LocalDateTime.class).get();
+        boolean areThereJobsOutOfTheExecutionWindow = (boolean) ReflectionUtils.invokeMethod(method, scheduler, jobs, start, end);
+
+        assertFalse(areThereJobsOutOfTheExecutionWindow);
+    }
+
+    @Test
+    void should_return_true_when_there_are_jobs_after_the_execution_window() {
 
         Job firstJob = newJob(LocalDateTime.parse("2020-10-12T10:20:30"), Duration.ofHours(1));
         Job secondJob = newJob(LocalDateTime.parse("2021-10-13T12:30:00"), Duration.ofHours(1));
         Job thirdJob = newJob(LocalDateTime.parse("2019-10-12T00:20:30"), Duration.ofHours(1));
 
-        LocalDateTime executionWindowStart = LocalDateTime.parse("2019-10-12T00:20:30");
-        LocalDateTime executionWindowEnd = LocalDateTime.parse("2020-10-12T14:20:00");
-
+        LocalDateTime start = LocalDateTime.parse("2019-10-12T00:20:30");
+        LocalDateTime end = LocalDateTime.parse("2020-10-12T14:20:00");
+        
         List<Job> jobs = Arrays.asList(firstJob, secondJob, thirdJob);
+        Method method = ReflectionUtils.findMethod(JobScheduler.class, "areThereJobsOutOfTheExecutionWindow",
+                List.class, LocalDateTime.class, LocalDateTime.class).get();
+        boolean areThereJobsOutOfTheExecutionWindow = (boolean) ReflectionUtils.invokeMethod(method, scheduler, jobs, start, end);
 
-        ValidationResult validationResult = jobScheduler.validateJobs(executionWindowStart, executionWindowEnd, jobs);
-
-        assertFalse(validationResult.isValid());
-        assertEquals( 1, validationResult.getMessages().size());
-        assertEquals(validationResult.getMessages().get(0), "Existem jobs com o prazo de execução fora janela de execução");
+        assertTrue(areThereJobsOutOfTheExecutionWindow);
     }
 
     @Test
-    void list_with_jobs_before_execution_window_end_should_be_invalid() {
+    void should_return_true_when_there_are_jobs_before_the_execution_window() {
 
         Job firstJob = newJob(LocalDateTime.parse("2020-10-12T10:20:30"), Duration.ofHours(1));
         Job secondJob = newJob(LocalDateTime.parse("2021-10-13T12:30:00"), Duration.ofHours(1));
         Job thirdJob = newJob(LocalDateTime.parse("2019-10-12T00:20:30"), Duration.ofHours(1));
 
-        LocalDateTime executionWindowStart = LocalDateTime.parse("2022-12-17T00:20:30");
-        LocalDateTime executionWindowEnd = LocalDateTime.parse("2022-12-17T14:20:00");
+        LocalDateTime start = LocalDateTime.parse("2022-12-17T00:20:30");
+        LocalDateTime end = LocalDateTime.parse("2022-12-17T14:20:00");
 
         List<Job> jobs = Arrays.asList(firstJob, secondJob, thirdJob);
-        ValidationResult validationResult = jobScheduler.validateJobs(executionWindowStart, executionWindowEnd, jobs);
+        Method method = ReflectionUtils.findMethod(JobScheduler.class, "areThereJobsOutOfTheExecutionWindow",
+                List.class, LocalDateTime.class, LocalDateTime.class).get();
+        boolean areThereJobsOutOfTheExecutionWindow = (boolean) ReflectionUtils.invokeMethod(method, scheduler, jobs, start, end);
 
-        assertFalse(validationResult.isValid());
-        assertEquals( 1, validationResult.getMessages().size());
-        assertEquals("Existem jobs com o prazo de execução fora janela de execução", validationResult.getMessages().get(0));
+        assertTrue(areThereJobsOutOfTheExecutionWindow);
     }
 
     @Test
-    void jobs_with_duration_greather_than_8_should_be_invalid() {
+    void should_return_false_when_all_jobs_estimated_time_is_less_than_or_equal_8() {
+
+        Job firstJob = newJob(LocalDateTime.parse("2020-10-12T10:20:30"), Duration.ofHours(2));
+        Job secondJob = newJob(LocalDateTime.parse("2020-10-13T12:30:00"), Duration.ofHours(6));
+        Job thirdJob = newJob(LocalDateTime.parse("2020-10-12T11:20:30"), Duration.ofHours(8));
+
+        List<Job> jobs = Arrays.asList(firstJob, secondJob, thirdJob);
+        Method method = ReflectionUtils.findMethod(JobScheduler.class, "isJobDurationGreaterThanMax", List.class).get();
+        boolean isJobDurationGreaterThanMax = (boolean) ReflectionUtils.invokeMethod(method, scheduler, jobs);
+
+        assertFalse(isJobDurationGreaterThanMax);
+    }
+
+    @Test
+    void should_return_true_when_there_are_jobs_with_estimated_time_greater_than_8() {
 
         Job firstJob = newJob(LocalDateTime.parse("2020-10-12T10:20:30"), Duration.ofHours(2));
         Job secondJob = newJob(LocalDateTime.parse("2020-10-13T12:30:00"), Duration.ofHours(6));
         Job thirdJob = newJob(LocalDateTime.parse("2020-10-12T11:20:30"), Duration.ofHours(9));
 
-        LocalDateTime executionWindowStart = LocalDateTime.parse("2020-10-12T10:20:30");
-        LocalDateTime executionWindowEnd = LocalDateTime.parse("2020-10-20T11:20:30");
-
         List<Job> jobs = Arrays.asList(firstJob, secondJob, thirdJob);
-        ValidationResult validationResult = jobScheduler.validateJobs(executionWindowStart, executionWindowEnd, jobs);
+        Method method = ReflectionUtils.findMethod(JobScheduler.class, "isJobDurationGreaterThanMax", List.class).get();
+        boolean isJobDurationGreaterThanMax = (boolean) ReflectionUtils.invokeMethod(method, scheduler, jobs);
 
-        assertFalse(validationResult.isValid());
-        assertEquals( 1, validationResult.getMessages().size());
-        assertEquals("Existem jobs com mais de 8 horas de tempo estimado", validationResult.getMessages().get(0));
+        assertTrue(isJobDurationGreaterThanMax);
     }
 
     @Test
-    void total_execution_duration_should_be_greather_than_execution_window_duration() {
+    void should_return_false_when_execution_duration_is_not_greater_than_execution_window_duration() {
+
+        Job firstJob = newJob(LocalDateTime.parse("2020-10-12T10:20:30"), Duration.ofHours(1));
+        Job secondJob = newJob(LocalDateTime.parse("2020-10-13T12:30:00"), Duration.ofHours(1));
+        Job thirdJob = newJob(LocalDateTime.parse("2020-10-12T11:20:30"), Duration.ofHours(1));
+
+        LocalDateTime start = LocalDateTime.parse("2022-12-17T00:20:30");
+        LocalDateTime end = LocalDateTime.parse("2022-12-17T14:20:00");
+
+        List<Job> jobs = Arrays.asList(firstJob, secondJob, thirdJob);
+        Method method = ReflectionUtils.findMethod(JobScheduler.class, "executionTimeGreaterThanJobWindow",
+                List.class, LocalDateTime.class, LocalDateTime.class).get();
+        boolean executionTimeGreaterThanJobWindow = (boolean)
+                ReflectionUtils.invokeMethod(method, scheduler, jobs, start, end);
+
+        assertFalse(executionTimeGreaterThanJobWindow);
+    }
+
+    @Test
+    void should_return_true_when_execution_duration_is_greater_than_execution_window_duration() {
 
         Job firstJob = newJob(LocalDateTime.parse("2020-10-12T10:20:30"), Duration.ofHours(8));
         Job secondJob = newJob(LocalDateTime.parse("2020-10-13T12:30:00"), Duration.ofHours(8));
         Job thirdJob = newJob(LocalDateTime.parse("2020-10-12T11:20:30"), Duration.ofHours(8));
 
-        LocalDateTime executionWindowStart = LocalDateTime.parse("2020-10-12T10:20:30");
-        LocalDateTime executionWindowEnd = LocalDateTime.parse("2020-10-12T11:20:30");
+        LocalDateTime start = LocalDateTime.parse("2022-12-17T00:20:30");
+        LocalDateTime end = LocalDateTime.parse("2022-12-17T14:20:00");
 
         List<Job> jobs = Arrays.asList(firstJob, secondJob, thirdJob);
-        ValidationResult validationResult = jobScheduler.validateJobs(executionWindowStart, executionWindowEnd, jobs);
+        Method method = ReflectionUtils.findMethod(JobScheduler.class, "executionTimeGreaterThanJobWindow",
+                List.class, LocalDateTime.class, LocalDateTime.class).get();
+        boolean executionTimeGreaterThanJobWindow = (boolean)
+                ReflectionUtils.invokeMethod(method, scheduler, jobs, start, end);
 
-        assertFalse(validationResult.isValid());
-        assertEquals( 1, validationResult.getMessages().size());
-        assertEquals("O tempo de execução das jobs é maior do que a duração da janela de execução", validationResult.getMessages().get(0));
+        assertTrue(executionTimeGreaterThanJobWindow);
     }
 
 
