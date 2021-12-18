@@ -1,5 +1,6 @@
 package com.marcelosantosc.service;
 
+import com.marcelosantosc.scheduling.job.exception.ValidationException;
 import com.marcelosantosc.scheduling.job.model.Job;
 import com.marcelosantosc.scheduling.job.model.ValidationResult;
 import com.marcelosantosc.scheduling.job.service.JobScheduler;
@@ -13,7 +14,7 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class JobSchedulerTest {
+class JobSchedulerTest {
 
     private final JobScheduler scheduler;
 
@@ -22,40 +23,76 @@ public class JobSchedulerTest {
     }
 
     @Test
+    void should_group_jobs_with_maximum_8_hours_of_estimated_time_per_group_while_respecting_deadline() {
+        Job firstJob = newJob(LocalDateTime.parse("2021-10-12T10:20:30"), Duration.ofHours(2));
+        Job secondJob = newJob(LocalDateTime.parse("2021-10-13T12:30:00"), Duration.ofHours(4));
+        Job thirdJob = newJob(LocalDateTime.parse("2021-11-25T14:15:00"), Duration.ofHours(6));
+        Job lastJob =  newJob(LocalDateTime.parse("2021-12-15T14:30:00"), Duration.ofHours(8));
+
+        LocalDateTime executionWindowStart = LocalDateTime.parse("2021-10-12T10:20:30");
+        LocalDateTime executionWindowEnd = LocalDateTime.parse("2021-12-15T14:30:00");
+
+        List<Job> jobs = Arrays.asList(firstJob, secondJob, thirdJob, lastJob);
+        List<Queue<Job>> scheduledJobs = scheduler.schedule(jobs, executionWindowStart, executionWindowEnd);
+
+        List<Job> firstJobGroup = Arrays.asList(firstJob, secondJob);
+        List<Job> secondJobGroup = Collections.singletonList(thirdJob);
+        List<Job> thirdJobGroup = Collections.singletonList(lastJob);
+
+        assertFalse(scheduledJobs.isEmpty());
+        assertEquals(firstJobGroup, scheduledJobs.get(0));
+        assertEquals(secondJobGroup, scheduledJobs.get(1));
+        assertEquals(thirdJobGroup, scheduledJobs.get(2));
+    }
+
+    @Test
+    void should_throw_validation_exception_with_invalid_jobs() {
+        Job firstJob = newJob(LocalDateTime.parse("2021-10-12T10:20:30"), Duration.ofHours(2));
+        Job secondJob = newJob(LocalDateTime.parse("2021-10-13T12:30:00"), Duration.ofHours(4));
+        Job thirdJob = newJob(LocalDateTime.parse("2021-11-25T14:15:00"), Duration.ofHours(6));
+        Job lastJob =  newJob(LocalDateTime.parse("2021-12-15T14:30:00"), Duration.ofHours(8));
+
+        LocalDateTime executionWindowStart = LocalDateTime.parse("2020-10-12T10:20:30");
+        LocalDateTime executionWindowEnd = LocalDateTime.parse("2020-12-15T14:30:00");
+
+        List<Job> jobs = Arrays.asList(firstJob, secondJob, thirdJob, lastJob);
+
+        assertThrows(ValidationException.class, () -> scheduler.schedule(jobs, executionWindowStart, executionWindowEnd));
+    }
+
+
+    @Test
     void should_sort_jobs_by_date() {
         Job firstJob = newJob(LocalDateTime.parse("2021-10-12T10:20:30"), Duration.ofHours(2));
         Job secondJob = newJob(LocalDateTime.parse("2021-10-13T12:30:00"), Duration.ofHours(4));
         Job thirdJob = newJob(LocalDateTime.parse("2021-11-25T14:15:00"), Duration.ofHours(6));
         Job lastJob =  newJob(LocalDateTime.parse("2021-12-15T14:30:00"), Duration.ofHours(8));
 
-        List<Job> sortedList = new LinkedList<>();
-        sortedList.add(firstJob);
-        sortedList.add(secondJob);
-        sortedList.add(thirdJob);
-        sortedList.add(lastJob);
+        List<Job> sortedList = Arrays.asList(firstJob, secondJob, thirdJob, lastJob);
+        List<Job> jobsToSort = Arrays.asList(secondJob, lastJob, firstJob, thirdJob);
 
-        List<Job> jobsToSort = new ArrayList<>(sortedList);
-        Collections.shuffle(jobsToSort);
 
-        assertNotEquals(sortedList, jobsToSort);
-
-        Queue<Job> jobsSortedByAlgorithm = scheduler.sortJobsByDate(jobsToSort);
+        Method method = ReflectionUtils.findMethod(JobScheduler.class, "sortJobsByDate", List.class).get();
+        Queue<Job> jobsSortedByAlgorithm = (Queue<Job>) ReflectionUtils.invokeMethod(method, scheduler, jobsToSort);
 
         assertEquals(sortedList, jobsSortedByAlgorithm);
     }
 
     @Test
     void should_not_return_validation_errors_with_valid_jobs() {
-        Job firstJob = newJob(LocalDateTime.parse("2020-10-12T10:20:30"), Duration.ofHours(2));
-        Job secondJob = newJob(LocalDateTime.parse("2020-10-13T12:30:00"), Duration.ofHours(6));
-        Job thirdJob = newJob(LocalDateTime.parse("2020-10-12T11:20:30"), Duration.ofHours(8));
+        Job firstJob = newJob(LocalDateTime.parse("2021-10-12T10:20:30"), Duration.ofHours(2));
+        Job secondJob = newJob(LocalDateTime.parse("2021-10-13T12:30:00"), Duration.ofHours(4));
+        Job thirdJob = newJob(LocalDateTime.parse("2021-11-25T14:15:00"), Duration.ofHours(6));
+        Job lastJob =  newJob(LocalDateTime.parse("2021-12-15T14:30:00"), Duration.ofHours(8));
 
-        LocalDateTime executionWindowStart = LocalDateTime.parse("2020-10-12T10:20:30");
-        LocalDateTime executionWindowEnd = LocalDateTime.parse("2020-10-20T11:20:30");
+        LocalDateTime start = LocalDateTime.parse("2021-10-12T10:20:30");
+        LocalDateTime end = LocalDateTime.parse("2021-12-15T14:30:00");
 
-        List<Job> jobs = Arrays.asList(firstJob, secondJob, thirdJob);
+        List<Job> jobs = Arrays.asList(firstJob, secondJob, thirdJob, lastJob);
 
-        ValidationResult validationResult = scheduler.validateJobs(executionWindowStart, executionWindowEnd, jobs);
+        Method method = ReflectionUtils.findMethod(JobScheduler.class, "validateJobs",
+                List.class, LocalDateTime.class, LocalDateTime.class).get();
+        ValidationResult validationResult = (ValidationResult) ReflectionUtils.invokeMethod(method, scheduler, jobs, start, end);
 
         assertTrue(validationResult.isValid());
         assertTrue(validationResult.getMessages().isEmpty());
