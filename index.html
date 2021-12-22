@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+
+    <title>My first BootstrapVue app</title>
+
+    <!-- CSS do Bootstrap e BootstrapVue  -->
+    <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap/dist/css/bootstrap.min.css" />
+    <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.css" />
+
+    <!-- Scripts do Vue e BootstrapVue -->
+    <script src="https://unpkg.com/vue@latest/dist/vue.js"></script>
+    <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.js"></script>
+
+    <!-- Load polyfills to support older browsers -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es2015%2CIntersectionObserver"></script>
+
+    <!-- Axios -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"></script>
+
+    <!-- JS e CSS da página -->
+    <script src="scrip.js"></script>
+    <link type="text/css" rel="stylesheet" href="./style.css" />
+</head>
+<body>
+<!-- Our application root element -->
+<div id="app">
+    <header id="header" class="mb-2">
+        <b-row class="m-0">
+            <h1 class="text-center">Job-Scheduler</h1>
+        </b-row>
+    </header>
+    <main id="content" class="mt-1">
+        <b-container>
+            <b-row>
+                <b-col>
+                    <b-row>
+                        <b-form-group label="Início da execução" class="w-50">
+                            <b-form-input v-model="start" placeholder="2019-11-10T09:00:00"></b-form-input>
+                        </b-form-group>
+
+                        <b-form-group label="Fim da execução" class="w-50">
+                            <b-form-input v-model="end" placeholder="2019-11-10T09:00:00"></b-form-input>
+                        </b-form-group>
+
+                        <b-form-group label="JSON com as JOBS">
+                            <b-form-textarea
+                                    id="textarea"
+                                    v-model="json"
+                                    placeholder="[...]"
+                                    :rows="22"
+                                    max-rows="22"
+                            ></b-form-textarea>
+                        </b-form-group>
+                    </b-row>
+
+                    <b-button variant="primary" class="mt-2 w-100" @click="schedule">Organizar jobs</b-button>
+                </b-col>
+
+                <b-col>
+                    <b-form-group label="Resultado">
+                        <b-form-textarea
+                                id="result-textarea"
+                                v-model="result"
+                                readonly
+                                rows="25"
+                                max-rows="25"
+                        ></b-form-textarea>
+                    </b-form-group>
+                </b-col>
+            </b-row>
+
+        </b-container>
+    </main>
+</div>
+
+<!-- Start running your app -->
+<script>
+
+
+    new Vue({
+        el: '#app',
+        data: {
+            start: '2019-11-10T09:00:00',
+            end: '2019-11-11T12:00:00',
+            json: [
+                {
+                    "id": 1,
+                    "description": "Importação de arquivos de fundos",
+                    "deadlineForExecution": "2019-11-10T12:00:00",
+                    "estimatedTime": 2
+                },
+                {
+                    "id": 2,
+                    "description": "Importação de dados da Base Legada",
+                    "deadlineForExecution": "2019-11-11T12:00:00",
+                    "estimatedTime": 4
+                },
+                {
+                    "id": 3,
+                    "description": "Importação de dados de integração",
+                    "deadlineForExecution": "2019-11-11T08:00:00",
+                    "estimatedTime": 6
+                }
+            ],
+            result: null
+        },
+        methods: {
+            async schedule() {
+              const url = `http://localhost:9977/api/scheduler/schedule?start=${this.start}&end=${this.end}`;
+              const response = await window.axios.put(url, this.json);
+
+              if (response.status == 200) {
+                  this.result = response.data;
+              } else {
+                  alert("Ocorreu um ao fazer a organizar as jobs")
+              }
+            },
+        },
+    });
+</script>
+</body>
+</html>

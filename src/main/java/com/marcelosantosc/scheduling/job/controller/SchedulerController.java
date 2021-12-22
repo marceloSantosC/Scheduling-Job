@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(value = "/scheduler", produces = MediaType.APPLICATION_JSON_VALUE)
+@CrossOrigin
 public class SchedulerController {
 
     private final Scheduler scheduler;
