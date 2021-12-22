@@ -9,12 +9,10 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 
 @AllArgsConstructor
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @Getter
 public class Job {
 
-    @EqualsAndHashCode.Include()
     private Long id;
 
     private String description;

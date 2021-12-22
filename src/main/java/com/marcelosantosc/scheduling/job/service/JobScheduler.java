@@ -3,6 +3,7 @@ package com.marcelosantosc.scheduling.job.service;
 import com.marcelosantosc.scheduling.job.exception.ValidationException;
 import com.marcelosantosc.scheduling.job.model.Job;
 import com.marcelosantosc.scheduling.job.model.ValidationResult;
+import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -12,7 +13,8 @@ import java.util.List;
 import java.util.Queue;
 import java.util.stream.Collectors;
 
-public class JobScheduler {
+@Service
+public class JobScheduler implements Scheduler {
 
     private static final Duration MAX_QUEUE_DURATION = Duration.ofHours(8);
 
