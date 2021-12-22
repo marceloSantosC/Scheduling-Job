@@ -5,6 +5,11 @@
 # Execução
  - Preencher os campos necessários e clicar no botão Organizar Jobs
  - As datas devem seguir o formato yyyy-MM-dd'T'HH:mm (2019-11-10T12:00:00)
- - O JSON deve ser válido e possui os campos id, description, deadlineForExecution e estimatedTime
+ - O JSON deve ser válido e possuir os campos id, description, deadlineForExecution e estimatedTime
+# Tecnologias utilizadas
+ - Vue.js
+ - JavaScript (axios)
+ - Spring boot
+ - Java
 # Outros
  - Kanban do projeto https://github.com/users/marceloSantosC/projects/1
