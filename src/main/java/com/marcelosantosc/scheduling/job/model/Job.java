@@ -1,8 +1,8 @@
 package com.marcelosantosc.scheduling.job.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import java.time.Duration;
@@ -19,6 +19,7 @@ public class Job {
 
     private LocalDateTime deadlineForExecution;
 
-    private Duration estimatedTime;
+    private Integer estimatedTime;
+
 
 }

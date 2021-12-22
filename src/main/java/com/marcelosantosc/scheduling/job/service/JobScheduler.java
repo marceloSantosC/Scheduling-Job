@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 @Service
 public class JobScheduler implements Scheduler {
 
-    private static final Duration MAX_QUEUE_DURATION = Duration.ofHours(8);
+    private static final Integer MAX_QUEUE_DURATION = 8;
 
     public List<Queue<Job>> schedule(List<Job> jobs,
                                      LocalDateTime executionWindowStart,
@@ -31,17 +31,15 @@ public class JobScheduler implements Scheduler {
         List<Queue<Job>> jobGroups = new LinkedList<>();
 
         Queue<Job> jobQueue = new LinkedList<>();
-        Duration currentQueueDuration = Duration.ZERO;
+        Integer currentQueueDuration = 0;
         jobGroups.add(jobQueue);
 
 
         while (!jobsSortedByDate.isEmpty()) {
             Job job = jobsSortedByDate.poll();
-            currentQueueDuration = currentQueueDuration.plus(job.getEstimatedTime());
+            currentQueueDuration = currentQueueDuration + job.getEstimatedTime();
 
-            boolean queueExecutionDurationGreaterThanMax = currentQueueDuration.compareTo(MAX_QUEUE_DURATION) > 0;
-
-            if (queueExecutionDurationGreaterThanMax) {
+            if (currentQueueDuration > MAX_QUEUE_DURATION) {
                 jobQueue = new LinkedList<>();
                 jobGroups.add(jobQueue);
                 jobQueue.add(job);
@@ -76,8 +74,8 @@ public class JobScheduler implements Scheduler {
     }
 
     private boolean executionTimeGreaterThanJobWindow(List<Job> jobs, LocalDateTime windowStart, LocalDateTime windowEnd) {
-        Duration executionDuration = jobs.stream().map(Job::getEstimatedTime).reduce(Duration.ZERO, Duration::plus);
-        return windowStart.plus(executionDuration).isAfter(windowEnd);
+        Integer executionDuration = jobs.stream().map(Job::getEstimatedTime).reduce(0, Integer::sum);
+        return windowStart.plus(Duration.ofHours(executionDuration)).isAfter(windowEnd);
     }
 
     private Queue<Job> sortJobsByDate(List<Job> jobs) {
